@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="../style.css">
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f4f4f4;
+            padding:20px;
+        }
+
+        .dashboard{
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+            gap:15px;
+            margin-bottom:20px;
+        }
+
+        .card{
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h2{
+            margin-bottom:20px;
+        }
+
+        .activity{
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            margin-top:20px;
+        }
+
+        .log-item{
+            border-bottom:1px solid #ddd;
+            padding:10px 0;
+        }
+
+        .log-item:last-child{
+            border-bottom:none;
+        }
+
+        .time{
+            color:gray;
+            font-size:12px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Passport Monitoring Dashboard</h2>
+
+<div class="dashboard">
+
+    <div class="card">
+        <h3>Total Passports</h3>
+        <h1 id="total">0</h1>
+    </div>
+
+    <div class="card">
+        <h3>Available</h3>
+        <h1 id="available">0</h1>
+    </div>
+
+    <div class="card">
+        <h3>Taken</h3>
+        <h1 id="taken">0</h1>
+    </div>
+
+</div>
+
+<div class="activity">
+
+    <h3>Today's Activity</h3>
+
+    <div id="todayLogs">
+        Loading...
+    </div>
+
+</div>
+
+<div class="activity">
+
+    <h3>Last 5 Minutes</h3>
+
+    <div id="recentLogs">
+        Loading...
+    </div>
+
+</div>
+
+<script type="module">
+
+import {
+    db,
+    collection,
+    getDocs
+} from "../firebase.js";
+
+import {
+    onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+
+// =======================
+// PASSPORT INVENTORY
+// =======================
+
+onSnapshot(
+    collection(db,"passport_inventory"),
+    (snapshot)=>{
+
+        let total = 0;
+        let available = 0;
+        let taken = 0;
+
+        snapshot.forEach((doc)=>{
+
+            total++;
+
+            if(doc.data().status === "Available"){
+                available++;
+            }
+
+            if(doc.data().status === "Taken"){
+                taken++;
+            }
+
+        });
+
+        document.getElementById("total").innerText = total;
+        document.getElementById("available").innerText = available;
+        document.getElementById("taken").innerText = taken;
+
+    }
+);
+
+
+// =======================
+// PASSPORT LOGS
+// =======================
+
+onSnapshot(
+    collection(db,"passport_logs"),
+    (snapshot)=>{
+
+        const todayLogs =
+            document.getElementById("todayLogs");
+
+        const recentLogs =
+            document.getElementById("recentLogs");
+
+        todayLogs.innerHTML = "";
+        recentLogs.innerHTML = "";
+
+        const now = new Date();
+
+        snapshot.forEach((doc)=>{
+
+            const data = doc.data();
+
+            if(!data.timestamp) return;
+
+            const logTime =
+                new Date(data.timestamp);
+
+            const diffMinutes =
+                (now - logTime) / 1000 / 60;
+
+            const html = `
+                <div class="log-item">
+
+                    <strong>
+                        ${data.staffName || "Unknown"}
+                    </strong>
+
+                    (${data.staffId || "-"})
+
+                    <br>
+
+                    ${data.action}
+
+                    <strong>
+                        ${data.passportNo}
+                    </strong>
+
+                    <div class="time">
+                        ${logTime.toLocaleString()}
+                    </div>
+
+                </div>
+            `;
+
+            todayLogs.innerHTML += html;
+
+            if(diffMinutes <= 5){
+                recentLogs.innerHTML += html;
+            }
+
+        });
+
+        if(todayLogs.innerHTML === ""){
+            todayLogs.innerHTML =
+                "No activity today";
+        }
+
+        if(recentLogs.innerHTML === ""){
+            recentLogs.innerHTML =
+                "No activity in last 5 minutes";
+        }
+
+    }
+);
+
+</script>
+
+</body>
+</html>

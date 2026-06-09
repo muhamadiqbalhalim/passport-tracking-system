@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>Return Passport</title>
+
+    <link rel="stylesheet" href="../style.css">
+
+    <style>
+
+        video,
+        canvas,
+        img{
+            width:100%;
+            max-width:350px;
+            border-radius:10px;
+            margin-top:10px;
+        }
+
+        .hidden{
+            display:none;
+        }
+
+        .card{
+            max-width:500px;
+            margin:auto;
+        }
+
+        button{
+            margin-top:10px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+    <h2>Return Passport</h2>
+
+    <input
+        id="name"
+        placeholder="Staff Name">
+
+    <input
+        id="staffId"
+        placeholder="Staff ID">
+
+    <input
+        id="passportNo"
+        placeholder="Passport Number">
+
+    <h3>Selfie Verification</h3>
+
+    <video
+        id="video"
+        autoplay
+        playsinline>
+    </video>
+
+    <canvas
+        id="canvas"
+        class="hidden">
+    </canvas>
+
+    <button id="captureBtn">
+        Capture Selfie
+    </button>
+
+    <br>
+
+    <img
+        id="preview"
+        class="hidden">
+
+    <button id="submitBtn">
+        Return Passport
+    </button>
+
+</div>
+
+<script type="module">
+
+import {
+    db,
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    where,
+    updateDoc
+}
+from "../firebase.js";
+
+const video =
+    document.getElementById("video");
+
+const canvas =
+    document.getElementById("canvas");
+
+const preview =
+    document.getElementById("preview");
+
+let selfieData = null;
+
+
+// =====================
+// START CAMERA
+// =====================
+
+try{
+
+    const stream =
+        await navigator
+        .mediaDevices
+        .getUserMedia({
+            video:true
+        });
+
+    video.srcObject =
+        stream;
+
+}
+catch(error){
+
+    console.error(error);
+
+    alert(
+        "Camera access required"
+    );
+
+}
+
+
+// =====================
+// CAPTURE SELFIE
+// =====================
+
+document
+.getElementById("captureBtn")
+.addEventListener("click",()=>{
+
+    const ctx =
+        canvas.getContext("2d");
+
+    canvas.width =
+        video.videoWidth;
+
+    canvas.height =
+        video.videoHeight;
+
+    ctx.drawImage(
+        video,
+        0,
+        0
+    );
+
+    selfieData =
+        canvas.toDataURL(
+            "image/png"
+        );
+
+    preview.src =
+        selfieData;
+
+    preview.classList
+        .remove("hidden");
+
+    alert(
+        "Selfie captured"
+    );
+
+});
+
+
+// =====================
+// RETURN PASSPORT
+// =====================
+
+document
+.getElementById("submitBtn")
+.addEventListener(
+    "click",
+    async ()=>{
+
+    const name =
+        document
+        .getElementById("name")
+        .value
+        .trim();
+
+    const staffId =
+        document
+        .getElementById("staffId")
+        .value
+        .trim();
+
+    const passportNo =
+        document
+        .getElementById("passportNo")
+        .value
+        .trim();
+
+    if(
+        !name ||
+        !staffId ||
+        !passportNo
+    ){
+
+        alert(
+            "Please fill all fields"
+        );
+
+        return;
+
+    }
+
+    if(!selfieData){
+
+        alert(
+            "Please capture a selfie first"
+        );
+
+        return;
+
+    }
+
+    try{
+
+        const q =
+            query(
+                collection(
+                    db,
+                    "passport_inventory"
+                ),
+                where(
+                    "passportNo",
+                    "==",
+                    passportNo
+                )
+            );
+
+        const snapshot =
+            await getDocs(q);
+
+        if(
+            snapshot.empty
+        ){
+
+            alert(
+                "Passport not found"
+            );
+
+            return;
+
+        }
+
+        const passportDoc =
+            snapshot.docs[0];
+
+        await updateDoc(
+            passportDoc.ref,
+            {
+                status:"Available",
+
+                takenBy:"",
+
+                takenAt:null,
+
+                returnedBy:name,
+
+                returnedStaffId:
+                    staffId,
+
+                returnedAt:
+                    new Date()
+                    .toISOString()
+            }
+        );
+
+        await addDoc(
+            collection(
+                db,
+                "passport_logs"
+            ),
+            {
+                passportNo,
+
+                staffName:name,
+
+                staffId,
+
+                action:"RETURN",
+
+                activityType:
+                    "passport",
+
+                status:
+                    "completed",
+
+                timestamp:
+                    new Date()
+                    .toISOString(),
+
+                selfieData
+            }
+        );
+
+        alert(
+            "Passport returned successfully"
+        );
+
+        location.reload();
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        alert(
+            "Failed to return passport"
+        );
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>

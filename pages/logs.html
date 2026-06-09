@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Passport Activity Logs</title>
+    <link rel="stylesheet" href="../style.css">
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f5f5f5;
+            padding:20px;
+        }
+
+        h2{
+            margin-bottom:20px;
+        }
+
+        table{
+            width:100%;
+            border-collapse:collapse;
+            background:white;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        th{
+            background:#1f2937;
+            color:white;
+        }
+
+        th,td{
+            padding:12px;
+            border:1px solid #ddd;
+            text-align:left;
+        }
+
+        tr:hover{
+            background:#f8f8f8;
+        }
+
+        .photo{
+            width:70px;
+            height:70px;
+            object-fit:cover;
+            border-radius:8px;
+        }
+
+        .take{
+            color:green;
+            font-weight:bold;
+        }
+
+        .return{
+            color:red;
+            font-weight:bold;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<h2>Passport Activity Logs</h2>
+
+<table>
+
+    <thead>
+        <tr>
+            <th>Photo</th>
+            <th>Name</th>
+            <th>Staff ID</th>
+            <th>Passport</th>
+            <th>Action</th>
+            <th>Time</th>
+        </tr>
+    </thead>
+
+    <tbody id="logsTable"></tbody>
+
+</table>
+
+<script type="module">
+
+import { db } from "../firebase.js";
+
+import {
+    collection,
+    query,
+    orderBy,
+    onSnapshot
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+
+const table =
+    document.getElementById("logsTable");
+
+
+const q =
+    query(
+        collection(db,"passport_logs"),
+        orderBy("timestamp","desc")
+    );
+
+
+onSnapshot(q,(snapshot)=>{
+
+    table.innerHTML = "";
+
+    snapshot.forEach((doc)=>{
+
+        const data = doc.data();
+
+        const actionClass =
+            data.action === "TAKE"
+            ? "take"
+            : "return";
+
+        const photo =
+            data.selfieUrl
+            ? `<img src="${data.selfieUrl}" class="photo">`
+            : "No Photo";
+
+        const time =
+            data.timestamp
+            ? new Date(data.timestamp)
+                .toLocaleString()
+            : "-";
+
+        table.innerHTML += `
+            <tr>
+
+                <td>${photo}</td>
+
+                <td>
+                    ${data.staffName || "-"}
+                </td>
+
+                <td>
+                    ${data.staffId || "-"}
+                </td>
+
+                <td>
+                    ${data.passportNo || "-"}
+                </td>
+
+                <td class="${actionClass}">
+                    ${data.action || "-"}
+                </td>
+
+                <td>
+                    ${time}
+                </td>
+
+            </tr>
+        `;
+
+    });
+
+});
+
+</script>
+
+</body>
+</html>
