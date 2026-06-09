@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>
+        Passport Tracking System
+    </title>
+
+    <link rel="stylesheet" href="../style.css">
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial,sans-serif;
+        }
+
+        body{
+            min-height:100vh;
+            background:#f5f6fa;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            padding:20px;
+        }
+
+        .container{
+            width:100%;
+            max-width:500px;
+        }
+
+        .card{
+            background:white;
+            padding:40px;
+            border-radius:20px;
+            box-shadow:
+                0 10px 30px
+                rgba(0,0,0,0.08);
+        }
+
+        h1{
+            margin-bottom:10px;
+        }
+
+        p{
+            color:#666;
+            margin-bottom:30px;
+        }
+
+        input{
+            width:100%;
+            padding:15px;
+            border:1px solid #ddd;
+            border-radius:10px;
+            margin-bottom:20px;
+            font-size:16px;
+        }
+
+        button{
+            width:100%;
+            padding:15px;
+            border:none;
+            border-radius:10px;
+            cursor:pointer;
+            background:#f4a62a;
+            font-weight:bold;
+            font-size:16px;
+        }
+
+        button:hover{
+            opacity:0.9;
+        }
+
+        .error{
+            color:red;
+            margin-top:15px;
+        }
+
+        .loading{
+            color:#666;
+            margin-top:15px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <h1>
+            Welcome Back
+        </h1>
+
+        <p>
+            Enter your Employee ID to access the Passport Tracking System.
+        </p>
+
+        <input
+            id="employeeId"
+            placeholder="Employee ID">
+
+        <button
+            id="loginBtn">
+
+            ACCESS PORTAL
+
+        </button>
+
+        <div
+            id="message">
+        </div>
+
+    </div>
+
+</div>
+
+<script type="module">
+
+import {
+    db,
+    collection,
+    getDocs,
+    query,
+    where
+}
+from "../firebase.js";
+
+const loginBtn =
+    document.getElementById(
+        "loginBtn"
+    );
+
+const message =
+    document.getElementById(
+        "message"
+    );
+
+loginBtn.addEventListener(
+    "click",
+    async ()=>{
+
+        const employeeId =
+            document
+            .getElementById(
+                "employeeId"
+            )
+            .value
+            .trim();
+
+        if(!employeeId){
+
+            message.innerHTML =
+                `<div class="error">
+                    Please enter Employee ID
+                </div>`;
+
+            return;
+
+        }
+
+        try{
+
+            message.innerHTML =
+                `<div class="loading">
+                    Checking employee...
+                </div>`;
+
+            const userQuery =
+                query(
+                    collection(
+                        db,
+                        "users"
+                    ),
+                    where(
+                        "employeeId",
+                        "==",
+                        employeeId
+                    )
+                );
+
+            const querySnapshot =
+                await getDocs(
+                    userQuery
+                );
+
+            if(
+                querySnapshot.empty
+            ){
+
+                message.innerHTML =
+                    `<div class="error">
+                        Employee ID not found
+                    </div>`;
+
+                return;
+
+            }
+
+            const userDoc =
+                querySnapshot.docs[0];
+
+            const userData =
+                userDoc.data();
+
+            // =========================
+            // CHECK ADMIN ACCESS
+            // =========================
+
+            const adminQuery =
+                query(
+                    collection(
+                        db,
+                        "passport_admins"
+                    ),
+                    where(
+                        "employeeId",
+                        "==",
+                        employeeId
+                    )
+                );
+
+            const adminSnapshot =
+                await getDocs(
+                    adminQuery
+                );
+
+            let role =
+                "staff";
+
+            if(
+                !adminSnapshot.empty
+            ){
+
+                role =
+                    "admin";
+
+            }
+
+
+            // =========================
+            // SAVE SESSION
+            // =========================
+
+            localStorage.setItem(
+                "passportUser",
+                JSON.stringify({
+
+                    userId:
+                        userDoc.id,
+
+                    employeeId:
+                        userData.employeeId,
+
+                    name:
+                        userData.name,
+
+                    lastName:
+                        userData.lastName,
+
+                    department:
+                        userData.department,
+
+                    email:
+                        userData.email,
+
+                    phone:
+                        userData.phone,
+
+                    role
+
+                })
+            );
+
+
+            // =========================
+            // REDIRECT
+            // =========================
+
+            if(
+                role ===
+                "admin"
+            ){
+
+                window.location.href =
+                    "admin.html";
+
+            }
+            else{
+
+                window.location.href =
+                    "staff-dashboard.html";
+
+            }
+
+        }
+        catch(error){
+
+            console.error(
+                error
+            );
+
+            message.innerHTML =
+                `<div class="error">
+                    Login failed
+                </div>`;
+
+        }
+
+    });
+
+</script>
+
+</body>
+
+</html>

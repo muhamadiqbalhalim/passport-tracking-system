@@ -46,13 +46,7 @@
 
     <h2>Return Passport</h2>
 
-    <input
-        id="name"
-        placeholder="Staff Name">
-
-    <input
-        id="staffId"
-        placeholder="Staff ID">
+    <div id="userInfo"></div>
 
     <input
         id="passportNo"
@@ -111,6 +105,45 @@ const preview =
 
 let selfieData = null;
 
+const currentUser =
+    JSON.parse(
+        localStorage.getItem(
+            "passportUser"
+        )
+    );
+
+if(!currentUser){
+
+    window.location.href =
+        "login.html";
+
+}
+
+const staffName =
+    currentUser.name;
+
+const staffId =
+    currentUser.employeeId;
+
+const department =
+    currentUser.department;
+
+document.getElementById(
+    "userInfo"
+).innerHTML = `
+    <div style="
+        background:#f5f5f5;
+        padding:12px;
+        border-radius:10px;
+        margin-bottom:15px;
+    ">
+        <strong>${staffName}</strong>
+        <br>
+        Department: ${department}
+        <br>
+        Employee ID: ${staffId}
+    </div>
+`;
 
 // =====================
 // START CAMERA
@@ -191,18 +224,6 @@ document
     "click",
     async ()=>{
 
-    const name =
-        document
-        .getElementById("name")
-        .value
-        .trim();
-
-    const staffId =
-        document
-        .getElementById("staffId")
-        .value
-        .trim();
-
     const passportNo =
         document
         .getElementById("passportNo")
@@ -210,13 +231,29 @@ document
         .trim();
 
     if(
-        !name ||
-        !staffId ||
-        !passportNo
+        !staffName ||
+        !staffId
     ){
 
         alert(
-            "Please fill all fields"
+            "Session expired. Please login again."
+        );
+
+        localStorage.removeItem(
+            "passportUser"
+        );
+
+        window.location.href =
+            "login.html";
+
+        return;
+
+    }
+
+    if(!passportNo){
+
+        alert(
+            "Please enter passport number"
         );
 
         return;
@@ -263,8 +300,37 @@ document
 
         }
 
-        const passportDoc =
-            snapshot.docs[0];
+    const passportDoc =
+        snapshot.docs[0];
+
+    const passportData =
+        passportDoc.data();
+
+    if(
+        currentUser.role !== "admin" &&
+        passportData.takenStaffId !== staffId
+    ){
+
+        alert(
+            "This passport was taken by another employee."
+        );
+
+        return;
+
+    }
+
+    if(
+        passportData.status ===
+        "Available"
+    ){
+
+        alert(
+            "Passport already returned"
+        );
+
+        return;
+
+    }
 
         await updateDoc(
             passportDoc.ref,
@@ -273,16 +339,17 @@ document
 
                 takenBy:"",
 
+                takenStaffId:"",
+
+                department:"",
+
                 takenAt:null,
 
-                returnedBy:name,
+                returnedBy:staffName,
 
-                returnedStaffId:
-                    staffId,
+                returnedStaffId:staffId,
 
-                returnedAt:
-                    new Date()
-                    .toISOString()
+                returnedAt:new Date().toISOString()
             }
         );
 
@@ -294,9 +361,11 @@ document
             {
                 passportNo,
 
-                staffName:name,
+                staffName,
 
                 staffId,
+
+                department,
 
                 action:"RETURN",
 

@@ -29,10 +29,6 @@
 
     <h2>Take Passport</h2>
 
-    <input id="name" placeholder="Staff Name">
-
-    <input id="staffId" placeholder="Staff ID">
-
     <input id="passportNo" placeholder="Passport Number">
 
     <h3>Selfie Verification</h3>
@@ -79,7 +75,41 @@ const preview =
 
 let selfieData = null;
 
+    const currentUser =
+        JSON.parse(
+            localStorage.getItem(
+                "passportUser"
+            )
+        );
 
+    if(!currentUser){
+
+        window.location.href =
+            "login.html";
+
+    }
+
+    document.querySelector(
+        ".card"
+    ).insertAdjacentHTML(
+        "afterbegin",
+        `
+        <div style="
+            background:#f5f5f5;
+            padding:10px;
+            border-radius:8px;
+            margin-bottom:15px;
+        ">
+            <strong>
+                ${currentUser.name}
+            </strong>
+            <br>
+            ID: ${currentUser.employeeId}
+            <br>
+            Department: ${currentUser.department}
+        </div>
+        `
+    );
 // ======================
 // START CAMERA
 // ======================
@@ -154,21 +184,40 @@ document
 .getElementById("submitBtn")
 .addEventListener("click", async ()=>{
 
+    const currentUser =
+        JSON.parse(
+            localStorage.getItem(
+                "passportUser"
+            )
+        );
+
+    if(!currentUser){
+
+        alert(
+            "Session expired. Please login again."
+        );
+
+        window.location.href =
+            "login.html";
+
+        return;
+
+    }
+
     const name =
-        document.getElementById("name")
-        .value.trim();
+        currentUser.name;
 
     const staffId =
-        document.getElementById("staffId")
-        .value.trim();
+        currentUser.employeeId;
+
+    const department =
+        currentUser.department;
 
     const passportNo =
         document.getElementById("passportNo")
         .value.trim();
 
     if(
-        !name ||
-        !staffId ||
         !passportNo
     ){
         alert(
@@ -231,44 +280,51 @@ document
 
         }
 
-        await updateDoc(
-            passportDoc.ref,
-            {
-                status:"Taken",
-                takenBy:name,
-                takenStaffId:staffId,
-                takenAt:
-                    new Date()
-                    .toISOString()
-            }
-        );
+    await updateDoc(
+        passportDoc.ref,
+        {
+            status:"Taken",
 
-        await addDoc(
-            collection(
-                db,
-                "passport_logs"
-            ),
-            {
-                passportNo,
+            takenBy:name,
 
-                staffName:name,
+            takenStaffId:staffId,
 
-                staffId,
+            department,
 
-                action:"TAKE",
+            takenAt:
+                new Date()
+                .toISOString()
+        }
+    );
 
-                activityType:
-                    "passport",
+    await addDoc(
+        collection(
+            db,
+            "passport_logs"
+        ),
+        {
+            passportNo,
 
-                status:"active",
+            staffName:name,
 
-                timestamp:
-                    new Date()
-                    .toISOString(),
+            staffId,
 
-                selfieData
-            }
-        );
+            department,
+
+            action:"TAKE",
+
+            activityType:
+                "passport",
+
+            status:"active",
+
+            timestamp:
+                new Date()
+                .toISOString(),
+
+            selfieData
+        }
+    );
 
         alert(
             "Passport Taken Successfully"

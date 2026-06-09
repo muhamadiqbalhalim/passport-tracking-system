@@ -1,224 +1,274 @@
-<!DOCTYPE html>
-<html>
-<head>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="../style.css">
+
+    <link rel="stylesheet" href="../style.css" />
 
     <style>
-        body{
-            font-family: Arial, sans-serif;
-            background:#f4f4f4;
-            padding:20px;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        background: #f5f6fa;
+        padding: 20px;
+      }
 
-        .dashboard{
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-            gap:15px;
-            margin-bottom:20px;
-        }
+      .container {
+        max-width: 1200px;
+        margin: auto;
+      }
 
-        .card{
-            background:white;
-            padding:20px;
-            border-radius:10px;
-            box-shadow:0 2px 8px rgba(0,0,0,0.1);
-        }
+      .header {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+      }
 
-        h2{
-            margin-bottom:20px;
-        }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+      }
 
-        .activity{
-            background:white;
-            padding:20px;
-            border-radius:10px;
-            margin-top:20px;
-        }
+      .card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+      }
 
-        .log-item{
-            border-bottom:1px solid #ddd;
-            padding:10px 0;
-        }
+      .card h2 {
+        margin-top: 10px;
+      }
 
-        .log-item:last-child{
-            border-bottom:none;
-        }
+      .activity {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        margin-top: 20px;
+      }
 
-        .time{
-            color:gray;
-            font-size:12px;
-        }
+      .log-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .log-item:last-child {
+        border-bottom: none;
+      }
+
+      .btn {
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      .logout {
+        background: red;
+        color: white;
+      }
+
+      .logs-btn {
+        background: #2563eb;
+        color: white;
+        text-decoration: none;
+        padding: 12px;
+        border-radius: 8px;
+        display: inline-block;
+        margin-top: 10px;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Passport Monitoring Dashboard</h1>
 
-<h2>Passport Monitoring Dashboard</h2>
+        <div id="adminInfo"></div>
+      </div>
 
-<div class="dashboard">
+      <div class="stats">
+        <div class="card">
+          <p>Total Passports</p>
+          <h2 id="total">0</h2>
+        </div>
 
-    <div class="card">
-        <h3>Total Passports</h3>
-        <h1 id="total">0</h1>
+        <div class="card">
+          <p>Available</p>
+          <h2 id="available">0</h2>
+        </div>
+
+        <div class="card">
+          <p>Taken</p>
+          <h2 id="taken">0</h2>
+        </div>
+      </div>
+
+      <div class="activity">
+        <h2>Current Passport Holders</h2>
+
+        <div id="holders">Loading...</div>
+      </div>
+
+      <div class="activity">
+        <h2>Latest Activities</h2>
+
+        <div id="activities">Loading...</div>
+
+        <a href="logs.html" class="logs-btn"> View Full Logs </a>
+      </div>
+
+      <br />
+
+      <button id="logoutBtn" class="btn logout">Logout</button>
     </div>
 
-    <div class="card">
-        <h3>Available</h3>
-        <h1 id="available">0</h1>
-    </div>
+    <script type="module">
+      import { db, collection, getDocs } from "../firebase.js";
 
-    <div class="card">
-        <h3>Taken</h3>
-        <h1 id="taken">0</h1>
-    </div>
+      const currentUser = JSON.parse(localStorage.getItem("passportUser"));
 
-</div>
+      if (!currentUser || currentUser.role !== "admin") {
+        window.location.href = "staff-dashboard.html";
+      }
 
-<div class="activity">
+      document.getElementById("adminInfo").innerHTML = `
 
-    <h3>Today's Activity</h3>
+<strong>
+${currentUser.name}
+</strong>
 
-    <div id="todayLogs">
-        Loading...
-    </div>
+<br>
 
-</div>
+Department:
+${currentUser.department}
 
-<div class="activity">
+`;
 
-    <h3>Last 5 Minutes</h3>
+      // ====================
+      // INVENTORY
+      // ====================
 
-    <div id="recentLogs">
-        Loading...
-    </div>
+      const inventorySnapshot = await getDocs(
+        collection(db, "passport_inventory"),
+      );
 
-</div>
+      let total = 0;
+      let available = 0;
+      let taken = 0;
 
-<script type="module">
+      let holdersHtml = "";
 
-import {
-    db,
-    collection,
-    getDocs
-} from "../firebase.js";
+      inventorySnapshot.forEach((doc) => {
+        const data = doc.data();
 
-import {
-    onSnapshot
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        total++;
 
-
-// =======================
-// PASSPORT INVENTORY
-// =======================
-
-onSnapshot(
-    collection(db,"passport_inventory"),
-    (snapshot)=>{
-
-        let total = 0;
-        let available = 0;
-        let taken = 0;
-
-        snapshot.forEach((doc)=>{
-
-            total++;
-
-            if(doc.data().status === "Available"){
-                available++;
-            }
-
-            if(doc.data().status === "Taken"){
-                taken++;
-            }
-
-        });
-
-        document.getElementById("total").innerText = total;
-        document.getElementById("available").innerText = available;
-        document.getElementById("taken").innerText = taken;
-
-    }
-);
-
-
-// =======================
-// PASSPORT LOGS
-// =======================
-
-onSnapshot(
-    collection(db,"passport_logs"),
-    (snapshot)=>{
-
-        const todayLogs =
-            document.getElementById("todayLogs");
-
-        const recentLogs =
-            document.getElementById("recentLogs");
-
-        todayLogs.innerHTML = "";
-        recentLogs.innerHTML = "";
-
-        const now = new Date();
-
-        snapshot.forEach((doc)=>{
-
-            const data = doc.data();
-
-            if(!data.timestamp) return;
-
-            const logTime =
-                new Date(data.timestamp);
-
-            const diffMinutes =
-                (now - logTime) / 1000 / 60;
-
-            const html = `
-                <div class="log-item">
-
-                    <strong>
-                        ${data.staffName || "Unknown"}
-                    </strong>
-
-                    (${data.staffId || "-"})
-
-                    <br>
-
-                    ${data.action}
-
-                    <strong>
-                        ${data.passportNo}
-                    </strong>
-
-                    <div class="time">
-                        ${logTime.toLocaleString()}
-                    </div>
-
-                </div>
-            `;
-
-            todayLogs.innerHTML += html;
-
-            if(diffMinutes <= 5){
-                recentLogs.innerHTML += html;
-            }
-
-        });
-
-        if(todayLogs.innerHTML === ""){
-            todayLogs.innerHTML =
-                "No activity today";
+        if (data.status === "Available") {
+          available++;
         }
 
-        if(recentLogs.innerHTML === ""){
-            recentLogs.innerHTML =
-                "No activity in last 5 minutes";
+        if (data.status === "Taken") {
+          taken++;
+
+          holdersHtml += `
+
+<div class="log-item">
+
+<strong>
+${data.passportNo}
+</strong>
+
+<br>
+
+Taken By:
+${data.takenBy}
+
+<br>
+
+ID:
+${data.takenStaffId || "-"}
+
+<br>
+
+Department:
+${data.department || "-"}
+
+</div>
+
+`;
         }
+      });
 
-    }
-);
+      document.getElementById("total").innerText = total;
 
-</script>
+      document.getElementById("available").innerText = available;
 
-</body>
+      document.getElementById("taken").innerText = taken;
+
+      document.getElementById("holders").innerHTML =
+        holdersHtml || "No passport currently taken";
+
+      // ====================
+      // LOGS
+      // ====================
+
+      const logsSnapshot = await getDocs(collection(db, "passport_logs"));
+
+      let logsHtml = "";
+
+      const logs = [];
+
+      logsSnapshot.forEach((doc) => {
+        logs.push(doc.data());
+      });
+
+      logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      logs.slice(0, 10).forEach((data) => {
+        logsHtml += `
+
+<div class="log-item">
+
+<strong>
+${data.staffName}
+</strong>
+
+(${data.staffId})
+
+<br>
+
+${data.action}
+
+Passport:
+${data.passportNo}
+
+<br>
+
+${new Date(data.timestamp).toLocaleString()}
+
+</div>
+
+`;
+      });
+
+      document.getElementById("activities").innerHTML =
+        logsHtml || "No activities";
+
+      // ====================
+      // LOGOUT
+      // ====================
+
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        localStorage.removeItem("passportUser");
+
+        window.location.href = "login.html";
+      });
+    </script>
+  </body>
 </html>
